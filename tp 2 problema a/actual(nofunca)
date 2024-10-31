@@ -1,0 +1,142 @@
+from collections import defaultdict
+
+class Grafo:
+    def __init__(self, vertices):
+        self.V = vertices
+        self.grafo = defaultdict(list)
+        self.tiempo = 0
+
+    def agregar_arista(self, u, v,i):
+        self.grafo[u].append((v,i))
+        self.grafo[v].append((u,i))
+
+    def dfs_puente(self, u,iid, visitado, padres, low, disc, puentesid):
+        visitado[u] = True
+        disc[u] = low[u] = self.tiempo
+        self.tiempo += 1
+
+        for v,i in self.grafo[u]:
+            #if i == iid: 
+            #    continue
+            if visitado[v]:
+                low[u] = min(low[u], disc[v])
+            else:
+                self.dfs_puente(v,i, visitado, padres, low, disc,puentesid)
+                low[u] = min(low[u], low[v])
+                
+        if disc[u] == low[u]:
+            puentesid.add(iid) 
+
+    def encontrar_puentes(self, aristas):
+        visitado = [False] * self.V
+        disc = [float("inf")] * self.V
+        low = [float("inf")] * self.V
+        padres = [-1] * self.V
+        #puentes = set()
+        puentesid = set()
+
+        for a,b,i in aristas:
+            if not visitado[a]:
+                self.dfs_puente(a,i, visitado, padres, low, disc,puentesid)
+
+        return puentesid
+
+
+class UnionFind:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.rank = [1] * n
+
+    def find(self, x):
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x, y):
+        rootX = self.find(x)
+        rootY = self.find(y)
+        if rootX != rootY:
+            if self.rank[rootX] > self.rank[rootY]:
+                self.parent[rootY] = rootX
+            elif self.rank[rootX] < self.rank[rootY]:
+                self.parent[rootX] = rootY
+            else:
+                self.parent[rootY] = rootX
+                self.rank[rootX] += 1
+
+
+def main():
+    n, m = map(int, input().split())
+    n+=1
+    aristas = [list(map(int, input().split())) + [False, i] for i in range(m)]
+    aristas.sort(key=lambda x: x[2])
+
+    aristasrepe = [[] for _ in range(m)]
+    aristassinrepe = []
+    i = 0
+    while i < m:
+        if i < m - 1 and aristas[i][2] == aristas[i + 1][2]:
+            j = i
+            aristassinrepe.append(aristas[i])
+            while j < m and aristas[j][2] == aristas[i][2]:
+                aristas[j][3] = True
+                aristasrepe[aristas[i][4]].append(aristas[j])
+                j += 1
+            i = j
+        else:
+            aristassinrepe.append(aristas[i])
+            i += 1
+    uf = UnionFind(n)
+    clasificadas = []
+
+    def puentes(aristas):
+        grafo = Grafo(n)
+        #i = 0
+        for u, v,i in aristas:
+            grafo.agregar_arista(u, v, i)
+        conjid =  grafo.encontrar_puentes(aristas)
+        return conjid
+
+    for u, v, w, b, i in aristassinrepe:
+        if not b:
+            if uf.find(u) != uf.find(v):
+                uf.union(u, v)
+                clasificadas.append((u, v, w, i, 0))
+            else:
+                clasificadas.append((u, v, w, i, 2))
+        else:
+            nuevasaristas = []
+            sinclasificar = []
+
+            for x, y, _, _, j in aristasrepe[i]: 
+                fx = uf.find(x)
+                fy = uf.find(y)
+                if fx != fy:
+                    nuevasaristas.append((min(fx,fy),max(fx,fy),j))
+                    sinclasificar.append((x, y, j))
+                else:
+                    clasificadas.append((x, y, w, j, 2))
+            miniid = puentes(nuevasaristas)
+
+            for x, y, j in sinclasificar:
+                uf.union(x, y)
+                if j in miniid:
+                    clasificadas.append((x, y, w, j, 0))
+                else:
+                    clasificadas.append((x, y, w, j, 1))
+
+    clasificadas.sort(key=lambda x: x[3])
+
+    for _, _, _, _, resultado in clasificadas:
+        if resultado == 0:
+            print("any")
+        elif resultado == 1:
+            print("at least one")
+        elif resultado == 2:
+            print("none")
+        else:
+            print("error")
+
+
+if __name__ == "__main__":
+    main()
